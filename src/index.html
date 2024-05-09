@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Fake LLM Server</title>
+    <style>
+      body,
+      input {
+        font-family: monospace;
+      }
+      pre {
+        background-color: #f4f4f4;
+        border: 1px solid #ddd;
+        border-radius: 3px;
+        padding: 10px;
+        overflow-x: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="importmap">
+      { "imports": { "vue": "https://unpkg.com/vue@3/dist/vue.esm-browser.js" } }
+    </script>
+    <script type="module">
+      import { createApp, ref, computed } from 'vue';
+
+      createApp({
+        setup() {
+          const browserUrl = window.location.href;
+
+          const testPrompt = ref('Hey!');
+          const testPromptActual = computed(() => testPrompt.value.replaceAll(`'`, ``));
+
+          const testOutput = ref('');
+          const agentId = ref('my-agent-id-1234567890');
+          const userId = ref('myUserId');
+          const apiKey = ref('myApiKey');
+          const llmBaseUrl = ref('<%= SERVER_URL %>');
+          const llmApiKey = ref('dummy-because-our-fake-llm-doesnt-care');
+
+          const sendTestRequest = async () => {
+            testOutput.value = 'Sending request...';
+            try {
+              const response = await fetch(`${browserUrl}chat/completions`, {
+                method: 'POST',
+                headers: {
+                  accept: 'application/json',
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  model: 'dummy',
+                  messages: [{ role: 'system', content: testPromptActual.value }],
+                }),
+              });
+
+              if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+              }
+
+              testOutput.value = '';
+              const reader = response.body.getReader();
+              const decoder = new TextDecoder();
+              let result;
+
+              while (!(result = await reader.read()).done) {
+                testOutput.value += decoder.decode(result.value, { stream: true });
+              }
+            } catch (error) {
+              console.log(error);
+              testOutput.value = `Error: ${error.message}. Check the console for more details.`;
+            }
+          };
+
+          return {
+            browserUrl,
+            testPrompt,
+            testPromptActual,
+            testOutput,
+            sendTestRequest,
+            agentId,
+            userId,
+            apiKey,
+            llmBaseUrl,
+            llmApiKey,
+          };
+        },
+      }).mount('#app');
+    </script>
+
+    <h1>Great! Your server is up!</h1>
+    <div id="app">
+      <p>
+        Your fake LLM url is <code><a href="<%= SERVER_URL %>" target="_blank"><%= SERVER_URL %></a></code>
+      </p>
+      <p>
+        It is running with run mode <strong><code><%= RUN_MODE %></code></strong>
+      </p>
+      <hr />
+      <p>To test it, try sending a POST request to <code>/chat/completions</code> with a JSON body like:</p>
+      <label>Prompt: <input type="text" v-model="testPrompt" size="50" /></label>
+      <pre>
+curl -X POST "<%= SERVER_URL %>chat/completions" \
+  -H "accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"dummy","messages":[{"role":"system","content":{{ JSON.stringify(testPromptActual) }}}]}'
+      </pre>
+      <button @click="sendTestRequest">Click here to try (look for "content" in the response lines)</button>
+      <pre style="white-space: pre-wrap">{{ testOutput }}</pre>
+      <hr />
+      <p>To set it as your custom LLM on an existing Play.ai agent, try:</p>
+      <label>Agent ID: <input type="text" v-model="agentId" size="50" /></label>&nbsp;
+      <a :href="'https://play.ai/agent/' + agentId" target="_blank">Try it out at play.ai</a><br />
+      <label>Your User ID: <input type="text" v-model="userId" size="50" /></label>&nbsp;
+      <a href="https://play.ai/developers" target="_blank">Get your User ID</a><br />
+      <label
+        >Your API Key: <input type="text" v-model="apiKey" size="50" />&nbsp;
+        <a href="https://play.ai/developers" target="_blank">Get your API Key</a></label
+      ><br />
+      <label>Your LLM API URL: <input type="text" v-model="llmBaseUrl" size="50" /> </label><br />
+      <label>Your LLM API KEY: <input type="text" v-model="llmApiKey" size="50" /> </label>
+      <pre>
+curl -X PATCH "https://api.play.ai/api/v1/agents/<span style="color: red;">{{ agentId }}</span>" \
+  -H "Authorization: Bearer <span style="color: red;">{{ apiKey }}</span>" \
+  -H "X-User-Id: <span style="color: red;">{{ userId }}</span>" \
+  -H "Content-Type: application/json" \
+  -d '<strong>{
+        "llm": {
+          "baseURL": "<span style="color: blue;">{{ llmBaseUrl }}</span>",
+          "apiKey": "<span style="color: red;">{{ llmApiKey }}</span>"
+        }
+      }</strong>'
+      </pre>
+    </div>
+  </body>
+</html>
