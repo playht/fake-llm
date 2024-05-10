@@ -109,7 +109,10 @@ const toMessages = (responseChunks: Array<string>) => [
 const sleep = async (timeout: number) => await new Promise((resolve) => setTimeout(resolve, timeout));
 
 const getIndexHtmlPageContent = (req: Request, runMode?: RunMode) => {
-  const SERVER_URL = req.protocol + '://' + req.get('host') + req.originalUrl;
+  // replit will run on http, but the "correct" external URL should use https
+  const protocol = req.get('host')?.includes('replit') ? 'https' : req.protocol;
+
+  const SERVER_URL = protocol + '://' + req.get('host') + req.originalUrl;
   const RUN_MODE = JSON.stringify(runMode);
   return fs
     .readFileSync(`${import.meta.dirname}/index.html`, 'utf8')
