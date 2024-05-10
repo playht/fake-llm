@@ -15,6 +15,13 @@
         padding: 10px;
         overflow-x: auto;
       }
+      .click-to-copy {
+        cursor: pointer;
+        color: #00753a;
+        margin-left: 10px;
+        white-space: pre;
+        font-weight: bold;
+      }
     </style>
   </head>
   <body>
@@ -26,7 +33,15 @@
 
       createApp({
         setup() {
-          const browserUrl = window.location.href;
+          const clickToCopyText = ref('(click to copy)');
+          const handleClickToCopy = () => {
+            navigator.clipboard.writeText('<%= SERVER_URL %>').then(() => {
+              clickToCopyText.value = '(   copied!   )';
+              setTimeout(() => {
+                clickToCopyText.value = '(click to copy)';
+              }, 3000);
+            });
+          };
 
           const testPrompt = ref('Hey!');
           const testPromptActual = computed(() => testPrompt.value.replaceAll(`'`, ``));
@@ -41,7 +56,7 @@
           const sendTestRequest = async () => {
             testOutput.value = 'Sending request...';
             try {
-              const response = await fetch(`${browserUrl}chat/completions`, {
+              const response = await fetch(`/chat/completions`, {
                 method: 'POST',
                 headers: {
                   accept: 'application/json',
@@ -72,7 +87,8 @@
           };
 
           return {
-            browserUrl,
+            clickToCopyText,
+            handleClickToCopy,
             testPrompt,
             testPromptActual,
             testOutput,
@@ -87,10 +103,11 @@
       }).mount('#app');
     </script>
 
-    <h1>Great! Your server is up!</h1>
+    <h1>Great! Your Fake LLM server is up!</h1>
     <div id="app">
       <p>
         Your fake LLM url is <code><a href="<%= SERVER_URL %>" target="_blank"><%= SERVER_URL %></a></code>
+        <span class="click-to-copy" @click="handleClickToCopy">{{ clickToCopyText }}</span>
       </p>
       <p>
         It is running with run mode <strong><code><%= RUN_MODE %></code></strong>
