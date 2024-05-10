@@ -86,6 +86,11 @@ const logRequest = (req: Request) => {
 const chunkify = (s: string) => s.split(/(?=[^a-z])(?!$)/i);
 
 const generateResponseContent = (runMode: RunMode | undefined, app: Express, request: Request): string => {
+  // This `if` is a special case for the smoke test, just so the LLM can pass the smoke test regardless of the runMode.
+  if (request.body.messages.length ===1 && request.body.messages[0].content.includes('The smoke test has passed.'))
+    return 'The smoke test has passed.';
+
+
   if (!runMode) {
     return 'Hello, world';
   }
